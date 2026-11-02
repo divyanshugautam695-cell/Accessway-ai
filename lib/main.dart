@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'live_map_page.dart';
 
 void main() => runApp(const AccessWayApp());
 
@@ -169,7 +170,7 @@ class _ExplorePageState extends State<ExplorePage> {
   Widget build(BuildContext context) {
     final matches = widget.places.where((p) => ('${p['name']} ${p['type']}').toLowerCase().contains(query.toLowerCase())).toList();
     return Scaffold(
-      appBar: AppBar(title: const Text('Explore places')),
+      appBar: AppBar(title: const Text('Explore places'), actions: [IconButton(tooltip: 'Open live map', icon: const Icon(Icons.map_outlined), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LiveMapPage())))],),
       body: ListView(padding: const EdgeInsets.all(18), children: [
         TextField(onChanged: (v) => setState(() => query = v), decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Search places or categories')),
         const SizedBox(height: 14),
@@ -178,7 +179,7 @@ class _ExplorePageState extends State<ExplorePage> {
         ...matches.map((p) => PlaceCard(place: p, onTap: () => widget.onOpen(p))),
         if (matches.isEmpty) const Text('No matching demo places.'),
         const SizedBox(height: 12),
-        const Text('Live maps and verified public listings will be added in a later milestone.'),
+        const Text('Live map uses your device location and OpenStreetMap community data. Accessibility status must still be verified.'),
       ]),
     );
   }
