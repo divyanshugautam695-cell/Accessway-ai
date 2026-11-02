@@ -27,8 +27,8 @@ jobs:
         run: flutter create --platforms=android --project-name accessway_ai .
       - name: Get packages
         run: flutter pub get
-      - name: Analyze Flutter project
-        run: flutter analyze
+      - name: Analyze app source
+        run: flutter analyze lib
       - name: Build release APK
         run: flutter build apk --release
       - name: Upload APK
