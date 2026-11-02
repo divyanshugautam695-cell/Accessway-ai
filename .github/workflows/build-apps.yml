@@ -7,6 +7,7 @@ on:
     paths:
       - 'lib/**'
       - 'pubspec.yaml'
+      - 'android/**'
       - '.github/workflows/build-apps.yml'
 
 permissions:
