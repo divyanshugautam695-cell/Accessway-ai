@@ -1,0 +1,67 @@
+name: Build AccessWay AI
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'lib/**'
+      - 'pubspec.yaml'
+      - '.github/workflows/build-apps.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  android-apk:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Generate Android platform files
+        run: flutter create --platforms=android --project-name accessway_ai .
+      - name: Get packages
+        run: flutter pub get
+      - name: Analyze Flutter project
+        run: flutter analyze
+      - name: Build release APK
+        run: flutter build apk --release
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: accessway-ai-android-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 14
+
+  windows-app:
+    name: Build Windows desktop app
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Generate Windows platform files
+        run: flutter create --platforms=windows --project-name accessway_ai .
+      - name: Get packages
+        run: flutter pub get
+      - name: Build Windows release
+        run: flutter build windows --release
+      - name: Package Windows app
+        shell: pwsh
+        run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath accessway-ai-windows.zip
+      - name: Upload Windows app
+        uses: actions/upload-artifact@v4
+        with:
+          name: accessway-ai-windows
+          path: accessway-ai-windows.zip
+          if-no-files-found: error
+          retention-days: 14
