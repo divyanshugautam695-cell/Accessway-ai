@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'auth_gate.dart';
+import 'backend_config.dart';
 import 'live_map_page.dart';
 
-void main() => runApp(const AccessWayApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await initializeBackend();
+  runApp(const AccessWayApp());
+}
 
 class AccessWayApp extends StatefulWidget {
   const AccessWayApp({super.key});
@@ -68,12 +75,12 @@ class _AccessWayAppState extends State<AccessWayApp> {
       scaffoldBackgroundColor: const Color(0xFF0B1422),
       cardTheme: CardThemeData(color: const Color(0xFF142238), elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18))),
     ),
-    home: Builder(builder: (context) => MainShell(
+    home: AuthGate(child: MainShell(
       places: places,
       reports: reports,
       mode: mode,
       onMode: (v) => setState(() => mode = v),
-      onReport: (r) => setState(() => reports.insert(0, r)),
+      onReport: _saveReport,
     )),
   );
 }
@@ -84,7 +91,7 @@ class MainShell extends StatefulWidget {
   final List<Map<String, String>> reports;
   final ThemeMode mode;
   final ValueChanged<ThemeMode> onMode;
-  final ValueChanged<Map<String, String>> onReport;
+  final Future<void> Function(Map<String, String>) onReport;
 
   @override
   State<MainShell> createState() => _MainShellState();
@@ -114,6 +121,20 @@ class _MainShellState extends State<MainShell> {
         ],
       ),
     );
+  }
+
+  Future<void> _saveReport(Map<String, String> report) async {
+    final user = supabaseConfigured ? Supabase.instance.client.auth.currentUser : null;
+    if (user != null) {
+      await Supabase.instance.client.from('barrier_reports').insert({
+        'reporter_id': user.id,
+        'place_name': report['place'],
+        'category': report['category'],
+        'description': report['description'],
+        'status': 'community_reported',
+      });
+    }
+    if (mounted) setState(() => reports.insert(0, report));
   }
 
   void _openPlace(Map<String, String> place) {
@@ -245,7 +266,7 @@ class StatusPill extends StatelessWidget {
 class ReportPage extends StatefulWidget {
   const ReportPage({super.key, required this.places, required this.onSubmit});
   final List<Map<String, String>> places;
-  final ValueChanged<Map<String, String>> onSubmit;
+  final Future<void> Function(Map<String, String>) onSubmit;
   @override
   State<ReportPage> createState() => _ReportPageState();
 }
@@ -260,15 +281,20 @@ class _ReportPageState extends State<ReportPage> {
   @override
   void dispose() { description.dispose(); super.dispose(); }
 
-  void submit() {
+  Future<void> submit() async {
     if (!formKey.currentState!.validate() || place == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Choose a place and complete the description.')));
       return;
     }
-    widget.onSubmit({'place': place!, 'category': category, 'description': description.text.trim(), 'status': 'Community reported'});
+    try {
+      await widget.onSubmit({'place': place!, 'category': category, 'description': description.text.trim(), 'status': 'Community reported'});
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not save report. Check your connection and try again.')));
+      return;
+    }
     description.clear();
     setState(() { place = null; category = categories.first; });
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Demo report saved for this app session.')));
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text(supabaseConfigured ? 'Report saved to your AccessWay account.' : 'Demo report saved for this app session.')));
   }
 
   @override
@@ -301,7 +327,7 @@ class SettingsPage extends StatelessWidget {
     body: ListView(padding: const EdgeInsets.all(18), children: [
       const CircleAvatar(radius: 32, child: Icon(Icons.person_outline, size: 32)),
       const SizedBox(height: 12),
-      Text('Guest user', textAlign: TextAlign.center, style: Theme.of(context).textTheme.titleLarge),
+      Text(supabaseConfigured ? (Supabase.instance.client.auth.currentUser?.email ?? 'Signed in') : 'Guest user', textAlign: TextAlign.center, style: Theme.of(context).textTheme.titleLarge),
       const SizedBox(height: 18),
       Card(child: ListTile(leading: const Icon(Icons.assignment_outlined), title: const Text('Reports this session'), trailing: Text('$count'))),
       const SizedBox(height: 12),
@@ -311,8 +337,10 @@ class SettingsPage extends StatelessWidget {
         RadioListTile<ThemeMode>(title: const Text('Dark mode'), value: ThemeMode.dark, groupValue: mode, onChanged: (v) => onMode(v!)),
       ])),
       const SizedBox(height: 12),
-      const Card(child: ListTile(leading: Icon(Icons.privacy_tip_outlined), title: Text('Privacy first'), subtitle: Text('This starter does not collect or upload personal data.'))),
-      const Card(child: ListTile(leading: Icon(Icons.build_outlined), title: Text('Prototype status'), subtitle: Text('Local demo data · No cloud sync · No live map · No Scout BLE yet'))),
+      const Card(child: ListTile(leading: Icon(Icons.privacy_tip_outlined), title: Text('Privacy first'), subtitle: Text('Account details and reports are stored only when Supabase is configured.'))),
+      Card(child: ListTile(leading: const Icon(Icons.cloud_outlined), title: const Text('Backend status'), subtitle: Text(supabaseConfigured ? 'Supabase configured · Cloud report submission enabled' : 'Local demo mode · Supabase setup still required'))),
+      if (supabaseConfigured) Card(child: ListTile(leading: const Icon(Icons.logout), title: const Text('Sign out'), onTap: () => Supabase.instance.client.auth.signOut())),
+      const Card(child: ListTile(leading: Icon(Icons.build_outlined), title: Text('Prototype status'), subtitle: Text('Live map · Cloud account foundation · AI route intelligence and Scout BLE still in development'))),
     ]),
   );
 }
