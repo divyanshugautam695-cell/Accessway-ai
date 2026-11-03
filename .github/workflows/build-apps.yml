@@ -17,6 +17,9 @@ jobs:
   android-apk:
     name: Build Android APK
     runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -31,7 +34,7 @@ jobs:
       - name: Analyze app source
         run: flutter analyze lib --no-fatal-infos
       - name: Build release APK
-        run: flutter build apk --release
+        run: flutter build apk --release --dart-define=SUPABASE_URL="$SUPABASE_URL" --dart-define=SUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY"
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
@@ -43,6 +46,9 @@ jobs:
   windows-app:
     name: Build Windows desktop app
     runs-on: windows-latest
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -55,7 +61,7 @@ jobs:
       - name: Get packages
         run: flutter pub get
       - name: Build Windows release
-        run: flutter build windows --release
+        run: flutter build windows --release --dart-define=SUPABASE_URL="$env:SUPABASE_URL" --dart-define=SUPABASE_PUBLISHABLE_KEY="$env:SUPABASE_PUBLISHABLE_KEY"
       - name: Package Windows app
         shell: pwsh
         run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath accessway-ai-windows.zip
