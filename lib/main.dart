@@ -83,6 +83,20 @@ class _AccessWayAppState extends State<AccessWayApp> {
       onReport: _saveReport,
     )),
   );
+
+  Future<void> _saveReport(Map<String, String> report) async {
+    final user = supabaseConfigured ? Supabase.instance.client.auth.currentUser : null;
+    if (user != null) {
+      await Supabase.instance.client.from('barrier_reports').insert({
+        'reporter_id': user.id,
+        'place_name': report['place'],
+        'category': report['category'],
+        'description': report['description'],
+        'status': 'community_reported',
+      });
+    }
+    if (mounted) setState(() => reports.insert(0, report));
+  }
 }
 
 class MainShell extends StatefulWidget {
@@ -121,20 +135,6 @@ class _MainShellState extends State<MainShell> {
         ],
       ),
     );
-  }
-
-  Future<void> _saveReport(Map<String, String> report) async {
-    final user = supabaseConfigured ? Supabase.instance.client.auth.currentUser : null;
-    if (user != null) {
-      await Supabase.instance.client.from('barrier_reports').insert({
-        'reporter_id': user.id,
-        'place_name': report['place'],
-        'category': report['category'],
-        'description': report['description'],
-        'status': 'community_reported',
-      });
-    }
-    if (mounted) setState(() => reports.insert(0, report));
   }
 
   void _openPlace(Map<String, String> place) {
@@ -294,7 +294,7 @@ class _ReportPageState extends State<ReportPage> {
     }
     description.clear();
     setState(() { place = null; category = categories.first; });
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text(supabaseConfigured ? 'Report saved to your AccessWay account.' : 'Demo report saved for this app session.')));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(supabaseConfigured ? 'Report saved to your AccessWay account.' : 'Demo report saved for this app session.')));
   }
 
   @override
@@ -311,7 +311,7 @@ class _ReportPageState extends State<ReportPage> {
       const SizedBox(height: 14),
       TextFormField(controller: description, minLines: 4, maxLines: 6, decoration: const InputDecoration(labelText: 'What did you observe?'), validator: (v) => v == null || v.trim().length < 8 ? 'Please add at least 8 characters.' : null),
       const SizedBox(height: 18),
-      FilledButton.icon(onPressed: submit, icon: const Icon(Icons.send), label: const Text('Save demo report')),
+      FilledButton.icon(onPressed: submit, icon: const Icon(Icons.send), label: Text(supabaseConfigured ? 'Submit report' : 'Save demo report')),
     ])),
   );
 }
